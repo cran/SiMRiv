@@ -1,13 +1,12 @@
 Package: SiMRiv
-Version: 0.9
-Date: 2016-07-12
+Version: 0.9.1
+Date: 2016-07-14
 Title: Individual-Based, Spatially-Explicit Simulation and Analysis of
         Multi-State Movements in River Networks and Heterogeneous
         Landscapes
 Authors@R: c(person("Lorenzo", "Quaglietta", role = c("aut"), email = "lontrenzo@gmail.com")
 		,person("Miguel", "Porto", role = c("aut", "cre"), email = "mpbertolo@gmail.com")
 		,person("Erida", "Gjini", role = c("ctb"), email = "egjini@igc.gulbenkian.pt")
-		,person("Bob", "Harris", role = c("ctb"))
 		)
 Depends: R (>= 1.8.0), raster
 Imports: methods, stats
@@ -32,11 +31,10 @@ License: GPL (>= 2)
 URL: http://www.r-project.org, https://github.com/miguel-porto/SiMRiv
 BugReports: https://github.com/miguel-porto/SiMRiv
 NeedsCompilation: yes
-Packaged: 2016-07-12 09:27:07 UTC; miguel
+Packaged: 2016-07-14 22:46:51 UTC; miguel
 Author: Lorenzo Quaglietta [aut],
   Miguel Porto [aut, cre],
-  Erida Gjini [ctb],
-  Bob Harris [ctb]
+  Erida Gjini [ctb]
 Maintainer: Miguel Porto <mpbertolo@gmail.com>
 Repository: CRAN
-Date/Publication: 2016-07-12 13:36:28
+Date/Publication: 2016-07-15 07:50:26
