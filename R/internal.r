@@ -1,15 +1,10 @@
-setClass("perceptionWindow",slots=c("type"="character","parameters"="numeric"))
-setClass("state",slots=c("turningAngleConcentration"="numeric","perceptionWindow"="perceptionWindow","stepLength"="numeric","name"="character"))
-setClass("species",slots=c("name"="character","transitionMatrix"="matrix","states"="list"))
-#setClass("individual",slots=c("species"="species"))
-
 MULTIPLIER=1000000L
 
-perceptionWindow<-function(type = "circular", radius) {
+perceptualRange<-function(type = "circular", radius) {
 	switch(pmatch(type,c("circular","gaussian"),nomatch=3),{
-			out=new("perceptionWindow",type="circular",parameters=c(radius=radius))
+			out=new("perceptualRange",type="circular",parameters=c(radius=radius))
 		},{
-			out=new("perceptionWindow",type="gaussian",parameters=c(sigma=radius))
+			out=new("perceptualRange",type="gaussian",parameters=c(sigma=radius))
 		}
 		,stop("'type' must be one of 'circular', 'gaussian'.")
 	)
@@ -24,17 +19,17 @@ perceptionWindow<-function(type = "circular", radius) {
 	})	
 }
 
-setMethod("show", signature(object="perceptionWindow"),.printPercWind)
-setMethod("print", signature(x="perceptionWindow"),function(x) show(x))
+setMethod("show", signature(object="perceptualRange"),.printPercWind)
+setMethod("print", signature(x="perceptualRange"),function(x) show(x))
 
 # steplen is assumed to be in the same units of the coordinates! Usually meters.
-state<-function(correlation, pwind = perceptionWindow("circular", 0), steplen = 1, name = "") {
+state<-function(correlation, pwind = perceptualRange("circular", 0), steplen = 1, name = "") {
 	if(correlation==1) correlation=0.99999
 	if(correlation==0) correlation=0.00001
 	
 	return(new("state"
 		, turningAngleConcentration=correlation
-		, perceptionWindow=pwind
+		, perceptualRange=pwind
 		, stepLength=steplen
 		, name=name ))
 }
@@ -43,18 +38,17 @@ setValidity("state",function(object) {
 	if(object@turningAngleConcentration<0 || object@turningAngleConcentration>1) return("Turning angle concentration must be within [0,1]")
 	return(TRUE)
 })
-
-
+ 
 state.Resting<-function() {
-	return(state(0,steplen=0,name="Resting"))
+	return(state(0, steplen = 0, name = "Resting"))
 }
 
 state.RW<-function() {
-	return(state(0,steplen=1,name="Random Walk"))
+	return(state(0, steplen = 1, name = "Random Walk"))
 }
 
 state.CRW<-function(correlation) {
-	return(state(correlation,steplen = 1,name = "Correlated Random Walk"))
+	return(state(correlation, steplen = 1, name = "Correlated Random Walk"))
 }
 
 .printState<-function(object) {
@@ -63,18 +57,19 @@ state.CRW<-function(correlation) {
 	} else {
 		cat("State",object@name,"with\n\t")
 	}
-	show(object@perceptionWindow)
+	show(object@perceptualRange)
 	cat("\tStep length =",object@stepLength,"\n\tTurning angle concentration =",object@turningAngleConcentration,"\n")
 }
 
 setMethod("show", signature(object="state"),.printState)
 
-species<-function(states, trans = transitionMatrix(), name = "<unnamed>") {
+species<-function(states, trans = transitionMatrix(), name = "<unnamed>", resistanceMap = NULL) {
 	if(!(inherits(states,"list"))) states=list(states)
 
-	out=new("species", states=states
-		, transitionMatrix=trans
-		, name=name
+	out=new("species", states = states
+		, transitionMatrix = trans
+		, name = name
+		, resistanceMap = resistanceMap
 	)
 	
 	names=character(length(states))
@@ -99,6 +94,8 @@ species<-function(states, trans = transitionMatrix(), name = "<unnamed>") {
 	}
 	cat("\nState transition matrix\n")
 	print(object@transitionMatrix)
+	cat("\nResistance map\n")
+	print(object@resistanceMap)
 }
 
 setMethod("show", signature(object="species"), .printSpecies)

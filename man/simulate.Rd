@@ -6,14 +6,17 @@
 }
 \usage{
 simulate(individuals, time, coords = NULL
-  , states = NULL, resist = NULL)
+  , states = NULL, resist = NULL, angles = NULL
+  , start.resistance)
 }
 \arguments{
   \item{individuals}{a \code{species} or a list of N \code{species} whose movements are to be simulated}
   \item{time}{the number of time steps to be simulated}
   \item{coords}{a N x 2 matrix giving the initial coordinates of the simulation, for each individual. Can be a vector of the form c(x, y) if only one individual is provided.}
   \item{resist}{an optional landscape resistance raster of class \code{RasterLayer}. If not provided, movements are simulated in an homogeneous environment.}
-  \item{states}{Not implemented yet. An optional numeric vector of length N giving the initial state of each individual.}
+  \item{angles}{an optional numeric vector of length N defining the initial heading of each individual, in radians. Zero is north and angles increase clockwise.}
+  \item{start.resistance}{an optional scalar in the range [0, 1] giving the maximum resistance value in which the individuals are allowed to start, if \code{coords} is \code{NULL} and \code{resist} is provided}
+  \item{states}{Not implemented yet. An optional numeric vector of length N defining the initial state of each individual.}
 }
 \details{
   Performs a mechanistic simulation of the movement of the given individual/s (when more than one individual is given,
@@ -26,10 +29,11 @@ simulate(individuals, time, coords = NULL
   
   In summary, at each micro-step the individual chooses a random direction which is based on the previous step heading and
   in the resistance context at the current position, such that it will avoid heading to areas with high resistance.
-  This evaluation depends on the individual's perception window in the current movement state.
+  This evaluation depends on the individual's perceptual range in the current movement state.
   At each step, a test to see if the individual changes its state is also performed, based on the provided \code{\link{transitionMatrix}}.
-  Each state may have its own perception window, step length and angular correlation (with previous step heading). It's up to the user the
-  definition of these values (e.g., expert- or literature-based).
+  Each state may have its own perceptual range, step length and angular correlation (with previous step heading). It's up to the user the
+  definition of these values (e.g., expert- or literature-based), but we provide an experimental function to numerically approximate these
+  values from real data, see \code{\link{adjustModel}}.
 
   In more detail, in each of the \code{time} steps, the procedure is as follows:
   \enumerate{
@@ -53,8 +57,8 @@ simulate(individuals, time, coords = NULL
       orthogonally.
     }
     \subsection{The empirical probability density}{
-      The empirical probability density for a given point (resistance component) is computed by summing the (1-resistance) values along all discrete radial lines departing from that point, forming a circle.
-      The length of the lines (i.e. radius) and weighting given to each pixel are defined in the current state's perception window.
+      The empirical probability density for a given point (resistance component) is computed by summing the \code{1 - resistance} values along a set of discrete radial lines departing from that point, forming a circle.
+      The length of the lines (i.e. radius) and weighting given to each pixel are defined in the current state's perceptual range.
       The sums are packed and used as the circular empirical distribution of the resistance component.
       This will be crossed with the correlated walk component to yield the final empirical probability distribution from which heading will be drawn.
     }
@@ -65,7 +69,7 @@ simulate(individuals, time, coords = NULL
 }
 \note{The structure of the returned object will change in the upcoming version.}
 \seealso{
-  \code{\link{species}}, \code{\link{sampleMovement}}.
+  \code{\link{species}}, \code{\link{sampleMovement}}, \code{\link{adjustModel}}.
 }
 \examples{
 library(SiMRiv)
@@ -93,8 +97,7 @@ lines(sim[,4:5], col=3)
 ###################################################################
 
 LevyWalker <- species(
-    list(state.RW(),
-    state.CRW(0.99)),
+    state.RW() + state.CRW(0.99),
     transitionMatrix(0.005, 0.02))
     
 sim <- simulate(LevyWalker, 10000)
@@ -103,19 +106,26 @@ plot(sim, type="l", asp=1)
 ## Linear habitats, e.g. fish in a river network
 ################################################
 
-## sample river raster in a fish's perspective,
+## load sample river raster in a fish's perspective,
 ## i.e. resistance is 0 within the river, 1 otherwise.
 
 data(river)
 
 ## let's try a Levy-like movement in a river network
-## note: perception window radii and step lengths must be
+## note: perceptual range radii and step lengths must be
 ## adequate to the raster resolution!
 
 LevyWalker <- species(list(
-    state(0, perceptionWindow("cir", 100), 10, "RandomWalk")
-    ,state(0.97, perceptionWindow("cir", 500), 20, "CorrelatedRW")
+    state(0, perceptualRange("cir", 100), 10, "RandomWalk")
+    ,state(0.97, perceptualRange("cir", 500), 20, "CorrelatedRW")
 ), transitionMatrix(0.005, 0.001))
+
+## NOTE: the following lines do exactly the same as above, but
+## using the more convenient arithmetic operator shortcuts
+
+LevyWalker <- species(
+	(state.RW() * 100 + 10) + (state.CRW(0.97) * 500 + 20)
+, transitionMatrix(0.005, 0.001))
 
 sim <- simulate(LevyWalker, 20000, resist = river
     , coords = c(280635, 505236))

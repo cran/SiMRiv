@@ -2,16 +2,16 @@
 \alias{sampleMovement}
 \title{Resample a simulated movement and compute step-wise statistics}
 \description{
-  Resamples a movement simulated with the function \code{\link{simulate}} to a lower temporal resolution.
-  Simultaneously, computes statistics, e.g. step length, turning angles (\cite{Turchin 1998}) for each resampled step,
-  assuming that a straight line connects each re-sampled vertex.
+  Resamples a movement simulated with the function \code{\link{simulate}} to a lower temporal resolution (frequency).
+  Simultaneously, computes step length, turning angles (\cite{Turchin 1998}) and accumulated resistance
+  for each resampled step, assuming that a straight line connects each re-sampled location.
 }
 \usage{
   sampleMovement(relocs, resolution = 1, resist = NULL)
 }
 \arguments{
   \item{relocs}{the simulated movement, an object returned by \code{\link{simulate}}. NOTE: currently this is only implemented for simulations of single individuals.}
-  \item{resolution}{movement will be resampled every this number of time ticks. If 1, no resampling is done (but statistics are computed).}
+  \item{resolution}{movement will be resampled every this number of time ticks. If 1, no resampling is done (but metrics are computed).}
   \item{resist}{a landscape resistance raster, usually the same that was used in \code{simulate}}
 }
 \details{
@@ -25,12 +25,12 @@
   }
 }
 \note{
-  These statistics are only meaningful for \code{resolution} >> 1, otherwise they are just a consequence of the simulation input parameters.
+  These metrics are only meaningful for \code{resolution} >> 1, otherwise they are just a consequence of the simulation input parameters.
 }
 \value{
   A list with the components \code{relocs} and \code{stats}.
   
-  \code{relocs} contains the resampled positions, \code{stats} contains the statistics for each step (which has N-2 rows because of the turning angles).
+  \code{relocs} contains the resampled positions, \code{stats} contains the metrics for each step (which has N-2 rows because of the turning angles).
 }
 \seealso{
   \code{\link{simulate}}.
@@ -39,12 +39,11 @@
 library(SiMRiv)
 
 LevyWalker <- species(
-  list(state.RW(),
-  state.CRW(0.99)),
-  transitionMatrix(0.005, 0.02))
+  state.RW() + state.CRW(0.99),
+  trans = transitionMatrix(0.005, 0.02))
 
 sim <- simulate(LevyWalker, 10000)
-resamp <- sampleMovement(sim,50)
+resamp <- sampleMovement(sim, 50)
 plot(sim, type="l", asp=1, col = "#777777")
 lines(resamp$relocs, col = "red")
 }

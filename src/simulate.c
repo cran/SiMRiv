@@ -1,40 +1,41 @@
-//#define USEOPENMP		FIXME: some bug with OMP in i386 architecture...
+// FIXME: some bug with OMP in i386 architecture...
+#define USEOPENMP
 #ifdef USEOPENMP
 #include <omp.h>
 #endif
 #include "SiMRiv.h"
 SEXP rho;
 
-SEXP _simulate_individuals(SEXP _individuals,SEXP _starting_positions,SEXP _timespan,SEXP _resist,SEXP envir) {
+SEXP _simulate_individuals(SEXP _individuals, SEXP _starting_positions, SEXP _timespan, SEXP _angles, SEXP _resist, SEXP envir) {
 	#ifdef USEOPENMP
 	omp_set_num_threads(omp_get_num_procs ( ));
-	Rprintf("Using multicore processing with %d threads.\n",omp_get_num_procs ( ));
+//	Rprintf("Using multicore processing with %d threads.\n",omp_get_num_procs ( ));
 	#endif
 	rho=envir;
-	RASTER *resist=NULL;
-	double rasterRes;
+	RASTER *resist = NULL;
 	GetRNGstate();
 	
-	if(_resist!=R_NilValue) {
-		resist=openRaster(_resist,rho);
-		rasterRes=NUMERIC_POINTER(getRasterRes(_resist,rho))[0];	// TODO handle cases when there is more than one raster (minimum resolution!)
+	if(_resist != R_NilValue) {
+		resist = openRaster(_resist,rho);
+//		rasterRes=NUMERIC_POINTER(getRasterRes(_resist,rho))[0];	// TODO handle cases when there is more than one raster (minimum resolution!)
 	}
-	int timespan=INTEGER_POINTER(_timespan)[0],*start=INTEGER_POINTER(_starting_positions);
+	
+	int timespan = INTEGER_POINTER(_timespan)[0], *start = INTEGER_POINTER(_starting_positions);
+	double *angles = NULL;
 	double *prelocs;
 	unsigned int ninds=LENGTH(_individuals),i,j,k,time,tmp1,tmp2;
 	SEXP relocs,tmp3,tmp4;
 	const char *tmp5;
 	float curangtrans;
+	
+	if(_angles != R_NilValue)
+		angles = NUMERIC_POINTER(_angles);
+
 // pointers to individual data
 	INDIVIDUAL *ind=malloc(sizeof(INDIVIDUAL)*ninds);
 	
 	PROTECT(relocs=allocMatrix(REALSXP,timespan,3*ninds));	// output is a matrix with columns x,y,state appended for each individual
 	prelocs=NUMERIC_POINTER(relocs);
-
-	float minimumRes=1000000000.f;
-	minimumRes=(float)rasterRes;		// TODO handle cases when there is more than one raster (minimum resolution!)
-	
-	// minimumRes is computed as the minimum of all step lengths across all individuals and the resistance raster
 	
 // get pointers to individual, species and state data
 	for(i=0;i<ninds;i++) {
@@ -50,7 +51,7 @@ SEXP _simulate_individuals(SEXP _individuals,SEXP _starting_positions,SEXP _time
 			ind[i].states[j].taconc=NUMERIC_POINTER(GET_SLOT(tmp3,SCALARCHAR("turningAngleConcentration")))[0];
 			ind[i].states[j].steplength=NUMERIC_POINTER(GET_SLOT(tmp3,SCALARCHAR("stepLength")))[0];
 			//ind[i].states[j].stubb=NUMERIC_POINTER(GET_SLOT(tmp3,SCALARCHAR("stubb")))[0];
-			tmp4=GET_SLOT(tmp3,SCALARCHAR("perceptionWindow"));
+			tmp4=GET_SLOT(tmp3,SCALARCHAR("perceptualRange"));
 			ind[i].states[j].pwind.radius=NUMERIC_POINTER(GET_SLOT(tmp4,SCALARCHAR("parameters")))[0];
 			tmp5=CHAR(STRING_ELT(GET_SLOT(tmp4,SCALARCHAR("type")),0));
 			if(strcmp(tmp5,"circular")==0)
@@ -70,87 +71,77 @@ SEXP _simulate_individuals(SEXP _individuals,SEXP _starting_positions,SEXP _time
 				}
 			}
 
-			if(ind[i].states[j].steplength>0 && minimumRes>ind[i].states[j].steplength) minimumRes=ind[i].states[j].steplength;
+//			if(ind[i].states[j].steplength>0 && minimumRes>ind[i].states[j].steplength) minimumRes=ind[i].states[j].steplength;
 		}
 		
 //for(j=0;j<ind[i].nstates*ind[i].nstates;j++) {Rprintf("%d ",ind[i].transitionmatrix[j]);}
 //Rprintf("sp: %s\n",STRING_VALUE(GET_SLOT(ind[i].pspecies,SCALARCHAR("name"))));
 	}
 
-//	unitStep=(float)minimumRes * UNITSTEPRATIO;
-	
 // START SIMULATION
 	{
-		PDF tmpPDF,tmprotPDF;
+		PDF tmpPDF, tmprotPDF;
 		CDF tmpMultCDF;
-		double **curtrans=malloc(sizeof(double*)*ninds);
-		unsigned long r,s,k;
-		float lengthmove;//,ecdfstep=getEmpiricalCDFStep();
+		double **curtrans = malloc(sizeof(double*) * ninds);
+		unsigned long r, s, k;
+		float lengthmove;
 		STATE *tmpstate;
-// assign initial states and angles and starting positions
-		for(i=0;i<ninds;i++) {
-			ind[i].curpos.x=start[i];
-			ind[i].curpos.y=start[i + ninds];
-			ind[i].curstate=runif(0,ind[i].nstates-1);		//rand() % ind[i].nstates;
-			
-			ind[i].curang=drawRandomAngle(NULL);	// uniform random angle
-			for(j=0;j<ind[i].nstates;j++) {
-// compute base circular PDFs for all states of all individuals (centerd on 0)
-				circNormal(ind[i].states[j].taconc,ind[i].states[j].basePDF,ind[i].states[j].scaledPDF);
-// compute cumulative circular PDFs for all states of all individuals
-				for(k=1,ind[i].states[j].cumPDF[0]=(long)(ind[i].states[j].basePDF[0]*MULTIPLIER);k<ANGLERES;k++) {
-					ind[i].states[j].cumPDF[k]=ind[i].states[j].cumPDF[k-1]+(long)(ind[i].states[j].basePDF[k]*MULTIPLIER);
+// assign initial states, angles and starting positions
+		for(i=0; i<ninds; i++) {
+			ind[i].curpos.x = start[i];
+			ind[i].curpos.y = start[i + ninds];
+			ind[i].curstate = runif(0, ind[i].nstates - 1);	// random initial state
+			ind[i].curang = angles ? (ISNAN(angles[i]) ? drawRandomAngle(NULL) : ((angles[i] + PI) / ANGLESTEP)) : drawRandomAngle(NULL);		// uniform random angle
+// initialize states
+			for(j=0; j<ind[i].nstates; j++) {
+// compute base circular PDFs for all states of all individuals (centered on 0), with given concentration
+				circNormal(ind[i].states[j].taconc, ind[i].states[j].basePDF, ind[i].states[j].scaledPDF);
+// compute the respective cumulative circular PDFs
+				for(k=1, ind[i].states[j].cumPDF[0] = (long)(ind[i].states[j].basePDF[0]*MULTIPLIER); k<ANGLERES; k++) {
+					ind[i].states[j].cumPDF[k] = ind[i].states[j].cumPDF[k-1]+(long)(ind[i].states[j].basePDF[k]*MULTIPLIER);
 				}
-// Rprintf("\nState %d\n",j);for(k=0;k<ANGLERES;k++) Rprintf("%d ",ind[i].states[j].cumPDF[k]);
 			}
 		}
-
-// MAIN TIME LOOP	**************************************
-		for(time=0;time<timespan;time++) {
-			for(i=0;i<ninds;i++) {
-//			for(k=0;k<4;k++) Rprintf("%f ",ind[i].transitionmatrix[k]);
-				curtrans[i]=ind[i].transitionmatrix;	// for now, constant transition matrix
-			}
+/***************************************
+** MAIN TIME LOOP
+***************************************/
+// NOTE: time is unitless for now
+		for(time=0; time<timespan; time++) {
+			for(i=0; i<ninds; i++)
+				curtrans[i] = ind[i].transitionmatrix;	// for now, constant transition matrix
 
 // LOOP FOR EACH INDIVIDUAL			
-			for(i=0,tmp2=0;i<ninds;i++,tmp2+=timespan) {	// tmp2 is just a relative pointer to output matrix
+			for(i=0, tmp2=0; i<ninds; i++, tmp2+=timespan) {	// tmp2 is just a relative pointer to output matrix
 // draw new state according to transition matrix
-				r=runif(0,MULTIPLIER-1);
-				for(k=0,s=(unsigned long)(curtrans[i][ind[i].curstate]*MULTIPLIER);k<=ind[i].nstates && r>=s;k++,s+=(unsigned long)(curtrans[i][ind[i].curstate + k*ind[i].nstates]*MULTIPLIER)) {}
-				ind[i].curstate=k;
-// Rprintf("curstate %d random %d newstate %d\n",ind[i].curstate,r,k);
+				r = runif(0, MULTIPLIER-1);
+				for(k=0, s=(unsigned long)(curtrans[i][ind[i].curstate]*MULTIPLIER)
+					; k<=ind[i].nstates && r>=s
+					; k++, s+=(unsigned long)(curtrans[i][ind[i].curstate + k*ind[i].nstates]*MULTIPLIER)) {}
+				ind[i].curstate = k;
 
-// draw random turning angle according to basePDF of curstate
-// note that this angle is not biased based on resistance, it just depends on the state definition and previous angle
-// this angle is the change in direction that the individual will make in the next step, so the "CRW component"
-
-				tmpstate=&ind[i].states[ind[i].curstate];
-// rotate the 0-centered PDF so to be centered in the previous step angle instead
+				tmpstate = &ind[i].states[ind[i].curstate];
+// rotate the 0-centered base PDF (the one calculated from the state's concentration parameter)
+// to center on the previous step angle
 				rotatePDF(tmpstate->scaledPDF, tmprotPDF, ind[i].curang-ANGLECENTER);
-// computes the empirical resistance around the current position
+// compute the empirical resistance PDF around the current position
 				computeEmpiricalResistancePDF(ind[i].curpos, resist, &tmpstate->pwind, tmpPDF);
 				if(tmpPDF[0]!=-1) {		// resistance is heterogeneous
 // multiply rotated base PDF by empirical PDF and compute cumulative PDF directly
 					for(j=1, tmpMultCDF[0] = (unsigned long)(tmprotPDF[0] * tmpPDF[0] * MULTIPLIER); j<ANGLERES; j++)
 						tmpMultCDF[j] = tmpMultCDF[j-1] + (long)(tmprotPDF[j] * tmpPDF[j] * MULTIPLIER);
-//Rprintf("New\n");
-/*for(j=0;j<ANGLERES;j+=1) Rprintf("%.01f ",tmpPDF[j]);
-Rprintf("\n");*/
-/*for(j=0;j<ANGLERES;j+=1) Rprintf("%.01f ",tmprotPDF[j]);
-Rprintf("\n");
-//for(j=0;j<ANGLERES;j+=2) Rprintf("%.01f ",(float)tmpMultCDF[j]/(float)tmpMultCDF[ANGLERES-1]);
-for(j=0;j<ANGLERES;j+=1) Rprintf("%d ",tmpMultCDF[j]);
-Rprintf("\n");*/
 
-					if(tmpMultCDF[ANGLERES-1]==0)	// TODO what to do when the desired direction is facing towards an infinite resistance area and there is no overlap of PDFs? keep trying, or abort step?
-						ind[i].curang=drawRandomAngle(NULL);	// here we just draw a uniform random angle
+// TODO what to do when the desired direction is facing towards an infinite resistance area and there is no overlap of PDFs? keep trying, or abort step?
+					if(tmpMultCDF[ANGLERES-1] == 0)
+						ind[i].curang = drawRandomAngle(NULL);	// here we just draw a uniform random angle
 					else
-						ind[i].curang=drawRandomAngle(tmpMultCDF);
+// draw random angle based on compound PDF (resistance + correlated components)
+						ind[i].curang = drawRandomAngle(tmpMultCDF);
 
 				} else {	// ignore resistance when resistance is equal in all directions
-					for(j=1,tmpMultCDF[0]=(unsigned long)(tmprotPDF[0]*MULTIPLIER);j<ANGLERES;j++)
-						tmpMultCDF[j]=tmpMultCDF[j-1] + (unsigned long)(tmprotPDF[j]*MULTIPLIER);
-					ind[i].curang=drawRandomAngle(tmpMultCDF);
+					for(j=1, tmpMultCDF[0]=(unsigned long)(tmprotPDF[0]*MULTIPLIER); j<ANGLERES; j++)
+						tmpMultCDF[j] = tmpMultCDF[j-1] + (unsigned long)(tmprotPDF[j]*MULTIPLIER);
+// draw random angle based on base PDF
+					ind[i].curang = drawRandomAngle(tmpMultCDF);
 				}
 /*for(j=0;j<ANGLERES;j+=1) Rprintf("%.01f ",tmpstate->scaledPDF[j]);
 Rprintf("\n");
@@ -215,9 +206,11 @@ Rprintf("\n");*/
 */
 
 /*
-make a circular PDF centered on zero
+make a circular wrapped normal PDF centered on zero
 note that there's an offset of -PI, so the first value corresponds to the density of -PI
 If scaledout is provided, also output range-standardized PDF
+Code adapted from the CircStats package, function dwrpnorm()
+_rho is the concentration parameter, varying from 0 (flat) to 1 (one peak)
 */
 void circNormal(float _rho,float* out,float* scaledout) {
 	float var=-2.f*log(_rho),next,last,delta;
@@ -293,7 +286,7 @@ inline float computeLengthMove(double baseStepLength,POINT curpos,RASTER *resist
 * and angular bias
 * Returns the PDF in the provided pointer NOTE: the PDF has an arbitrary scale, the integral is not constant!!
 */
-void computeEmpiricalResistancePDF(POINT curpos,RASTER *resist,PERCEPTIONWINDOW *percwind,PDF pdf) {
+void computeEmpiricalResistancePDF(POINT curpos,const RASTER *resist,PERCEPTIONWINDOW *percwind,PDF pdf) {
 	bool allinf=true;
 	float step;
 	
@@ -305,42 +298,44 @@ void computeEmpiricalResistancePDF(POINT curpos,RASTER *resist,PERCEPTIONWINDOW 
 	switch(percwind->type) {
 	case CIRCULAR:
 		step=percwind->radius/ACCUMULATORRESOLUTION;
-		#pragma omp parallel
-		{
-			int i,j;
-			float tcos,tsin,ang,sum;
-			POINT tmppos;
-			double tmp;
-			
-			#pragma omp for
-			for(i=0; i<ANGLERES; i++) {	// make a whole circle
-				ang=-PI+i*ANGLESTEP;
-				tmppos=curpos;
-		// for each angle, sum the resistance values along the radial line centered on curpos
-				tcos=cos(ang)*step;	// TODO create a look-up table to speed up things here? or maybe not?
-				tsin=sin(ang)*step;
+		int i,j;
+		float tcos,tsin,ang,sum;
+		POINT tmppos;
+		double tmp;
+		
+		#ifdef USEOPENMP
+		#pragma omp parallel for firstprivate(step,resist,curpos,percwind) private(i,j,tcos,tsin,ang,sum,tmppos,tmp) shared(allinf,pdf)
+		#endif
+		for(i=0; i<ANGLERES; i++) {	// make a whole circle
+			ang=-PI+i*ANGLESTEP;
+			tmppos=curpos;
+	// for each angle, sum the resistance values along the radial line centered on curpos
+			tcos=cos(ang)*step;	// TODO create a look-up table to speed up things here? or maybe not?
+			tsin=sin(ang)*step;
 
-				for(j=0, sum=0; j<percwind->radius; j += step) {
-					tmp=extractRasterValue(resist,tmppos.x,tmppos.y);
-					if(isnan(tmp) || tmp==NA_REAL || tmp==1)
-						sum+=0;
-					else {
-						sum+=1-tmp;
-						allinf=false;
-					}
-					tmppos.x+=tcos;
-					tmppos.y+=tsin;
+			for(j=0, sum=0; j<percwind->radius; j += step) {
+				tmp=extractRasterValue(resist,tmppos.x,tmppos.y);
+
+				if(isnan(tmp) || tmp==NA_REAL || tmp==1)
+					sum+=0;
+				else {
+					sum+=1-tmp;
+					if(allinf) allinf=false;
 				}
-				pdf[i] = sum;
-	//			cdf[i]=(unsigned long)(sum*MULTIPLIER);
-//				ang+=ANGLESTEP;
+				tmppos.x+=tcos;
+				tmppos.y+=tsin;
 			}
+			pdf[i] = sum;
+//			cdf[i]=(unsigned long)(sum*MULTIPLIER);
+//				ang+=ANGLESTEP;
 		}
 		break;
 		
 	case GAUSSIAN:
 		step=percwind->radius/ACCUMULATORRESOLUTION;	// TODO is this adequate in the gaussian?
+		#ifdef USEOPENMP
 		#pragma omp parallel
+		#endif
 		{
 //			Rprintf("num threads: %d\n",omp_get_num_threads());
 			int i,j;
@@ -348,7 +343,9 @@ void computeEmpiricalResistancePDF(POINT curpos,RASTER *resist,PERCEPTIONWINDOW 
 			POINT tmppos;
 			double tmp;
 			
+			#ifdef USEOPENMP
 			#pragma omp for
+			#endif
 			for(i=0;i<ANGLERES;i++) {	// make a whole circle
 				ang=-PI+i*ANGLESTEP;
 				tmppos=curpos;
