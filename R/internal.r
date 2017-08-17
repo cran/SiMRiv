@@ -40,15 +40,15 @@ setValidity("state",function(object) {
 })
  
 state.Resting<-function() {
-	return(state(0, steplen = 0, name = "Resting"))
+	return(state(0, steplen = 0, name = "Rest"))
 }
 
 state.RW<-function() {
-	return(state(0, steplen = 1, name = "Random Walk"))
+	return(state(0, steplen = 1, name = "RW"))
 }
 
 state.CRW<-function(correlation) {
-	return(state(correlation, steplen = 1, name = "Correlated Random Walk"))
+	return(state(correlation, steplen = 1, name = "CRW"))
 }
 
 .printState<-function(object) {
@@ -93,9 +93,9 @@ species<-function(states, trans = transitionMatrix(), name = "<unnamed>", resist
 		show(object@states[[i]])
 	}
 	cat("\nState transition matrix\n")
-	print(object@transitionMatrix)
-	cat("\nResistance map\n")
-	print(object@resistanceMap)
+	print(round(object@transitionMatrix, 4))
+	#cat("\nResistance map\n")
+	#print(object@resistanceMap)
 }
 
 setMethod("show", signature(object="species"), .printSpecies)
@@ -110,7 +110,7 @@ setValidity("species",function(object) {
 	if(dim(trans)[1]!=dim(trans)[2]) return("Transition matrix must be square")
 	if(length(states)!=dim(trans)[1]) return("Transition matrix must have the same number of rows as the number of states provided")
 	if(any(trans<0) || any(trans>1)) return("Transition matrix values must be probabilities between 0 and 1")
-	if(any(apply(trans,1,sum)!=1)) return("Transition matrix must sum to 1 in all rows (not columns)")
+	if(any(abs(apply(trans,1,sum) - 1) > 0.000001 )) return("Transition matrix must sum to 1 in all rows (not columns)")
 	return(TRUE)
 })
 
@@ -129,7 +129,7 @@ transitionMatrix <- function(...) {
 		}
 	}
 	diag(out) = 1 - apply(out,1,sum,na.rm=T)
-	if(any(apply(out,1,sum) != 1)) return("Transition matrix must sum to 1 in all rows (not columns)")
+	#if(any(apply(out,1,sum) != 1)) stop("Transition matrix must sum to 1 in all rows (not columns)")
 	return(out)
 }
 #individual<-function(species) {
