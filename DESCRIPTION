@@ -1,6 +1,6 @@
 Package: SiMRiv
-Version: 1.0.2
-Date: 2017-11-06
+Version: 1.0.3
+Date: 2018-01-31
 Title: Simulating Multistate Movements in River/Heterogeneous
         Landscapes
 Authors@R: c(person("Lorenzo", "Quaglietta", role = c("aut"), email = "lontrenzo@gmail.com")
@@ -29,10 +29,10 @@ License: GPL (>= 2)
 URL: https://www.r-project.org, https://github.com/miguel-porto/SiMRiv
 BugReports: https://github.com/miguel-porto/SiMRiv
 NeedsCompilation: yes
-Packaged: 2017-11-07 11:07:00 UTC; miguel
+Packaged: 2018-01-31 11:46:22 UTC; miguel
 Author: Lorenzo Quaglietta [aut],
   Miguel Porto [aut, cre],
   Erida Gjini [ctb]
 Maintainer: Miguel Porto <mpbertolo@gmail.com>
 Repository: CRAN
-Date/Publication: 2017-11-07 14:12:15 UTC
+Date/Publication: 2018-01-31 12:30:44 UTC
