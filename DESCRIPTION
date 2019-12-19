@@ -1,13 +1,13 @@
 Package: SiMRiv
-Version: 1.0.3
-Date: 2018-01-31
+Version: 1.0.4
+Date: 2019-12-19
 Title: Simulating Multistate Movements in River/Heterogeneous
         Landscapes
 Authors@R: c(person("Lorenzo", "Quaglietta", role = c("aut"), email = "lontrenzo@gmail.com")
 		,person("Miguel", "Porto", role = c("aut", "cre"), email = "mpbertolo@gmail.com")
 		,person("Erida", "Gjini", role = c("ctb"), email = "egjini@igc.gulbenkian.pt")
 		)
-Depends: R (>= 1.8.0), raster
+Depends: R (>= 2.10), raster
 Imports: methods, stats, sp, mco, parallel, rgdal
 Suggests: adehabitatLT, moveHMM, rgeos, testthat
 Description: Provides functions to generate and analyze spatially-explicit individual-based multistate movements in rivers,
@@ -28,11 +28,12 @@ Description: Provides functions to generate and analyze spatially-explicit indiv
 License: GPL (>= 2)
 URL: https://www.r-project.org, https://github.com/miguel-porto/SiMRiv
 BugReports: https://github.com/miguel-porto/SiMRiv
+LazyData: true
 NeedsCompilation: yes
-Packaged: 2018-01-31 11:46:22 UTC; miguel
+Packaged: 2019-12-19 13:59:22 UTC; miguel
 Author: Lorenzo Quaglietta [aut],
   Miguel Porto [aut, cre],
   Erida Gjini [ctb]
 Maintainer: Miguel Porto <mpbertolo@gmail.com>
 Repository: CRAN
-Date/Publication: 2018-01-31 12:30:44 UTC
+Date/Publication: 2019-12-19 15:40:02 UTC
