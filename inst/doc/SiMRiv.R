@@ -1,5 +1,4 @@
 ### R code from vignette source 'SiMRiv.Rnw'
-### Encoding: UTF-8
 
 ###################################################
 ### code chunk number 1: version
