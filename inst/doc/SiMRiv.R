@@ -122,12 +122,12 @@ plot(resistance, axes = F)
 ### code chunk number 10: simriv-8
 ###################################################
 # load shapefile
-river.shape <- shapefile(system.file("doc/river-sample.shp", package="SiMRiv"))
+river.shape <- sf::st_read(system.file("doc/river-sample.shp", package="SiMRiv"))
 
 # below you can provide the shapefile filename, or the
 # R shapefile object itself
 resistance <- resistanceFromShape(river.shape, res = 100
-  , buffer = (9 - river.shape@data$Order) ^ 3
+  , buffer = (9 - river.shape$Order) ^ 3
   , background = 0.95, margin = 3000)
 
 # buffer here is just some magical function to convert river
@@ -156,15 +156,18 @@ plot(river.landcover, axes = F)
 ###################################################
 ### code chunk number 12: simriv-10
 ###################################################
+# this is just for ensuring the same results - don't use it in your code
+set.seed(4)
+
 # set starting coordinates anywhere within the river
 init = xyFromCell(river.landcover, sample(which(values(river.landcover) == 0), 1))
-
 
 # adding a number to a species is a shortcut for setting
 # the step lengths of all states
 # multiplying is a shortcut for setting the perceptual range radius
 levy.walker <- (levy.walker + 15) * 1000
 
+# simulate
 sim.lw.river <- simulate(levy.walker, 40000
   , resist = river.landcover, coords = init)
 
