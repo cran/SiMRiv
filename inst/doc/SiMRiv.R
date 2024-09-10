@@ -90,7 +90,7 @@ plot(sim.lw, type = "l", asp = 1, main = "Lévy-like walker")
 resistance <- resistanceFromShape(
   system.file("doc/landcover.shp", package="SiMRiv")
   , res = 100)
-plot(resistance, axes = F)
+plot(resistance, axes = F, col=map.pal("reds"))
 
 
 ###################################################
@@ -103,7 +103,7 @@ resistance <- resistanceFromShape(
     , "shrubland" = 0.75)
   , background = 0.9, margin = 3000)
 
-plot(resistance, axes = F)
+plot(resistance, axes = F, col=map.pal("reds"))
 
 
 ###################################################
@@ -115,7 +115,7 @@ resistance <- resistanceFromShape(
     , "3" = 0.2, "4" = 0.4, "5" = 0.6, "6" = 0.8)
   , buffer = 150, background = 0.95, margin = 3000)
 
-plot(resistance, axes = F)
+plot(resistance, axes = F, col=map.pal("reds"))
 
 
 ###################################################
@@ -133,7 +133,7 @@ resistance <- resistanceFromShape(river.shape, res = 100
 # buffer here is just some magical function to convert river
 # order into a meaningful value in the [0, 1] range!
 
-plot(resistance, axes = F)
+plot(resistance, axes = F, col=map.pal("reds"))
 
 
 ###################################################
@@ -150,17 +150,17 @@ river.landcover <- resistanceFromShape(
   , baseRaster = landcover, buffer = 100, field = 0
   , background = 0.95, margin = 3000)
 
-plot(river.landcover, axes = F)
+plot(river.landcover, axes = F, col=map.pal("reds"))
 
 
 ###################################################
 ### code chunk number 12: simriv-10
 ###################################################
 # this is just for ensuring the same results - don't use it in your code
-set.seed(4)
+set.seed(6)
 
 # set starting coordinates anywhere within the river
-init = xyFromCell(river.landcover, sample(which(values(river.landcover) == 0), 1))
+init <- terra::xyFromCell(river.landcover, sample(which(values(river.landcover) == 0), 1))
 
 # adding a number to a species is a shortcut for setting
 # the step lengths of all states
@@ -170,9 +170,8 @@ levy.walker <- (levy.walker + 15) * 1000
 # simulate
 sim.lw.river <- simulate(levy.walker, 40000
   , resist = river.landcover, coords = init)
-
 # plot resistance
-plot(river.landcover, axes = F
+plot(river.landcover, axes = F, col=map.pal("reds")
   , ylim = range(sim.lw.river[, 2]), xlim = range(sim.lw.river[, 1]))
 
 # plot trajectory on top of resistance
